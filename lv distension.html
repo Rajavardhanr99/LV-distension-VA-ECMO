@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LV Function, Venting, ECMO Flow & Lung Edema in VA ECMO</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start; 
+            min-h-screen;
+            background-color: #f0f4f8; 
+            margin: 0;
+            padding: 1rem; 
+            color: #343a40; 
+        }
+        .main-container {
+            width: 100%;
+            max-width: 1000px; 
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .content-wrapper {
+            display: flex;
+            flex-direction: column; 
+            align-items: center; 
+            gap: 1rem; 
+            width: 100%;
+            margin-bottom: 1rem;
+        }
+        
+        .animation-column {
+            flex-grow: 1; 
+            display: flex;
+            flex-direction: column;
+            align-items: center; 
+            min-width: 0; 
+            width: 100%; 
+        }
+        #animationCanvas {
+            border: 1px solid #d1d5db; 
+            background-color: #ffffff;
+            border-radius: 0.75rem; 
+            box-shadow: 0 8px 16px rgba(0,0,0,0.05); 
+            width: 100%; /* Take full width of parent */
+            max-width: 800px; /* Increased max-width */
+            height: auto; /* Let aspect-ratio define height based on width */
+            aspect-ratio: 4 / 3; /* Maintain aspect ratio */
+            display: block; /* Ensures proper box model behavior */
+        }
+        
+        .control-panel {
+            display: flex;
+            flex-wrap: wrap; 
+            justify-content: center;
+            gap: 0.5rem; 
+            margin-bottom: 1rem;
+            padding: 0.75rem;
+            background-color: #ffffff;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            width: 100%;
+            max-width: 950px; /* Adjusted to fit more buttons & sliders */
+        }
+        .control-button {
+            padding: 0.5rem 0.8rem; 
+            font-size: 0.75rem; 
+        }
+        .slider-container {
+            padding: 0.4rem 0.8rem; 
+            background-color: #f9fafb; /* Light background for sliders */
+            border-radius: 0.5rem;
+            border: 1px solid #e5e7eb;
+            display: flex;
+            flex-direction: column; /* Stack label and slider */
+            align-items: center;
+            min-width: 150px; /* Ensure sliders have enough space */
+        }
+        .slider-container label {
+            font-size: 0.7rem; 
+            font-weight: 500;
+            color: #4b5563;
+            margin-bottom: 0.25rem;
+        }
+        .slider-container input[type="range"] {
+            width: 120px; 
+            height: 0.5rem;
+        }
+        .slider-container output {
+            font-size: 0.7rem; 
+            font-weight: 600;
+            color: #1f2937;
+            margin-top: 0.1rem;
+            min-width: 25px; /* For consistent alignment */
+            text-align: center;
+        }
+
+        .info-text {
+            margin-top: 0.5rem; 
+            margin-bottom: 1rem;
+            font-size: 0.85rem; 
+            max-width: 600px;
+            text-align: center;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <h1 class="text-xl sm:text-2xl font-bold text-gray-800 mb-4 text-center tracking-tight">
+            Interactive VA ECMO & LV Dynamics
+        </h1>
+
+        <div class="control-panel">
+            <button id="btnBaseline" class="control-button bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-3 rounded-lg shadow transition-colors duration-150">Baseline</button>
+            <button id="btnHarlequin" class="control-button bg-orange-500 hover:bg-orange-600 text-white font-medium py-2 px-3 rounded-lg shadow transition-colors duration-150">Harlequin</button>
+            
+            <button id="btnInotropes" class="control-button bg-green-500 hover:bg-green-600 text-white font-medium py-2 px-3 rounded-lg shadow transition-colors duration-150" data-strategy="Inotropes">Inotropes</button>
+            <button id="btnIABP" class="control-button bg-purple-500 hover:bg-purple-600 text-white font-medium py-2 px-3 rounded-lg shadow transition-colors duration-150" data-strategy="IABP">IABP</button>
+            <button id="btnImpella" class="control-button bg-red-500 hover:bg-red-600 text-white font-medium py-2 px-3 rounded-lg shadow transition-colors duration-150" data-strategy="Impella">Impella</button>
+            <button id="btnLVVent" class="control-button bg-yellow-500 hover:bg-yellow-600 text-black font-medium py-2 px-3 rounded-lg shadow transition-colors duration-150" data-strategy="LVVent">LV Vent</button>
+            <button id="btnDiuretics" class="control-button bg-teal-500 hover:bg-teal-600 text-white font-medium py-2 px-3 rounded-lg shadow transition-colors duration-150" data-strategy="Diuretics">Diuretics</button>
+            <button id="btnVAVECMO" class="control-button bg-pink-500 hover:bg-pink-600 text-white font-medium py-2 px-3 rounded-lg shadow transition-colors duration-150" data-strategy="VAVECMO">VAV ECMO</button>
+            <button id="btnOptiVents" class="control-button bg-cyan-500 hover:bg-cyan-600 text-white font-medium py-2 px-3 rounded-lg shadow transition-colors duration-150" data-strategy="OptiVents">Optimize Vents</button>
+            
+            <div class="slider-container">
+                <label for="ecmoFlowSlider">ECMO Flow:</label>
+                <div>
+                    <input type="range" id="ecmoFlowSlider" min="0" max="100" value="30" class="h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer">
+                    <output id="ecmoFlowValue">3.0 L/min</output>
+                </div>
+            </div>
+            <div class="slider-container">
+                <label for="lvFunctionSlider">LV Function:</label>
+                <div>
+                    <input type="range" id="lvFunctionSlider" min="0" max="100" value="60">
+                    <output id="lvFunctionValue">60%</output>
+                </div>
+            </div>
+            <div class="slider-container">
+                <label for="lungFunctionSlider">Lung Function:</label>
+                <div>
+                    <input type="range" id="lungFunctionSlider" min="0" max="100" value="70">
+                    <output id="lungFunctionValue">70%</output>
+                </div>
+            </div>
+        </div>
+
+        <div class="content-wrapper">
+            <div class="animation-column">
+                <canvas id="animationCanvas"></canvas>
+            </div>
+        </div>
+        
+        <p id="strategyDescription" class="info-text text-gray-700">Select interventions. Adjust ECMO flow. Observe physiological changes.</p>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('animationCanvas');
+        const ctx = canvas.getContext('2d');
+        const descriptionElement = document.getElementById('strategyDescription');
+        
+        // Sliders and their value displays
+        const ecmoFlowSlider = document.getElementById('ecmoFlowSlider');
+        const ecmoFlowValueDisplay = document.getElementById('ecmoFlowValue');
+        const lvFunctionSlider = document.getElementById('lvFunctionSlider');
+        const lvFunctionValueDisplay = document.getElementById('lvFunctionValue');
+        const lungFunctionSlider = document.getElementById('lungFunctionSlider');
+        const lungFunctionValueDisplay = document.getElementById('lungFunctionValue');
+
+        let activeInterventions = []; 
+        const MAX_INTERVENTIONS = 3; 
+        let scenarioMode = 'default'; 
+
+        // Physiological parameters controlled by sliders
+        let currentEcmoFlowLevel = 0.3; 
+        let currentLvFunctionLevel = 0.6; // 0 to 1
+        let currentLungFunctionLevel = 0.7; // 0 to 1
+
+        let animationFrameId;
+        let time = 0; 
+        let easeFactor = 0.1; 
+
+        const baseCanvasWidth = 600; 
+        const baseCanvasHeight = 450; 
+        let canvasWidth = baseCanvasWidth;
+        let canvasHeight = baseCanvasHeight;
+        
+        window.aorticBoundaries = {}; 
+        window.lungWetnessLevel = 0.3; 
+        window.aorticValveIsOpen = false; 
+        window.watershedDisplayY = 0; 
+        let valveOpeningDegree = 0; 
+
+        let currentHemodynamics = { 
+            map: '--', lvSys: '--', lvDia: '--', laPress: '--', 
+            valveStatus: '--', edemaSeverity: '--', edemaScore: '--',
+            nativeOxygenation: 'Normal',
+            upperLimbSpo2: '--', 
+            lowerLimbSpo2: '--'  
+        };
+
+        const colors = {
+            la: '#ffd166', lv: '#f7a072', aorta: '#ffc8dd', pulmonaryArtery: '#118ab2', 
+            ecmoBloodOxygenated: '#d90429', 
+            nativeLVBlood: '#ef476f',       
+            nativeMildlyDeoxygenatedBlood: '#cc6b87', 
+            nativeDeoxygenatedBlood: '#7851a9', 
+            deviceGray: '#adb5bd', 
+            valveColor: '#6c757d', valveLeaflet: '#495057', valveLeafletEdge: '#343a40', 
+            iabpBalloon: '#a78bfa', healthyLung: '#fce3e4', lungFluid: 'rgba(100, 149, 237, 0.7)',
+            lungFluidHighlight: 'rgba(135, 206, 250, 0.4)',
+            textPrimary: '#212529', 
+            textSecondary: '#495057',
+            watershedLine: 'rgba(255, 230, 0, 0.65)', 
+            watershedShadow: 'rgba(0, 0, 0, 0.35)'
+        };
+
+        const heartX = () => canvasWidth * 0.35;
+        const heartY = () => canvasHeight * 0.5;
+        const laRadiusBase = () => canvasWidth * 0.07; 
+        const lvBaseRadiusBase = () => canvasWidth * 0.11;
+        
+        let targetLaRadius = laRadiusBase();
+        let currentLaRadius = laRadiusBase();
+        let targetLvRadius = lvBaseRadiusBase();
+        let currentLvRadius = lvBaseRadiusBase();
+        
+        const aorticRootX = () => heartX() + currentLvRadius * 0.1; 
+        const aorticRootY = () => heartY() - currentLvRadius * 0.8; 
+        const aorticWidth = () => canvasWidth * 0.065; 
+        const ascendingAortaHeight = () => canvasHeight * 0.15; 
+        const archRadius = () => aorticWidth() * 2.0; 
+        const descendingAortaHeight = () => canvasHeight * 0.38;
+
+        const ecmoArterialCannula = {
+            x: () => window.aorticBoundaries.descLeftX ? (window.aorticBoundaries.descLeftX + window.aorticBoundaries.descRightX) / 2 : aorticRootX(), 
+            y_start: () => canvasHeight * 0.98, 
+            y_end: () => window.aorticBoundaries.descBottomY ? window.aorticBoundaries.descBottomY - 10 : canvasHeight * 0.9,
+            width: () => canvasWidth * 0.03
+        };
+
+        let ecmoParticles = []; 
+        let cannulaParticles = []; 
+        let nativeParticles = [];
+
+        function createParticle(x, y, speed, type) {
+            return {
+                x, y,
+                vx: (Math.random() - 0.5) * 0.5, 
+                vy: -speed * (0.8 + Math.random() * 0.4), 
+                life: 100 + Math.random() * 50, type, opacity: 1,
+                radius: (type === 'ecmo' ? 2.5 + currentEcmoFlowLevel * 1.5 : 2.5) * (canvasWidth/baseCanvasWidth) * (0.8 + Math.random()*0.4) 
+            };
+        }
+        
+        function initCannulaParticles() {
+            cannulaParticles = [];
+            const cannula = ecmoArterialCannula;
+            const numParticlesInCannula = Math.floor(15 + currentEcmoFlowLevel * 45);
+            for (let i = 0; i < numParticlesInCannula; i++) {
+                let particleSpeed = 0.8 + currentEcmoFlowLevel * 1.7 + Math.random() * 0.6;
+                cannulaParticles.push({ 
+                    x: cannula.x() - cannula.width()/2 + Math.random() * cannula.width(),
+                    y: cannula.y_end() + Math.random() * (cannula.y_start() - cannula.y_end()), 
+                    speed: particleSpeed,
+                    radius: (1.5 + currentEcmoFlowLevel * 1 + Math.random()*1) * (canvasWidth/baseCanvasWidth)
+                });
+            }
+        }
+
+        function initAorticParticles() { ecmoParticles = []; }
+        function initNativeParticles() { 
+            nativeParticles = [];
+            if (!window.aorticBoundaries.descLeftX || !window.aorticBoundaries.valveY) return;
+            const b = window.aorticBoundaries;
+            for (let i = 0; i < 10; i++) { 
+                nativeParticles.push(createParticle(
+                    b.rootX + (Math.random() - 0.5) * b.aWidth * 0.2,
+                    b.valveY - 5 + (Math.random() - 0.5) * 10, 
+                    0.5 + Math.random() * 0.4, 
+                    'native'
+                ));
+            }
+        }
+
+        function drawLungs(wetnessLevel) {
+            const lungWidth = canvasWidth * 0.28; const lungHeight = canvasHeight * 0.55;
+            const lungOffsetY = canvasHeight * 0.08; const lungSpacingFromCenter = canvasWidth * 0.06;
+            const rightLungX = heartX() - currentLvRadius - lungWidth + lungSpacingFromCenter * 0.5;
+            const rightLungY = heartY() - lungHeight / 2 + lungOffsetY;
+            const leftLungX = heartX() + currentLvRadius + lungSpacingFromCenter * 1.5;
+            const leftLungY = heartY() - lungHeight / 2 + lungOffsetY;
+            ctx.save(); ctx.fillStyle = colors.healthyLung;
+            ctx.beginPath(); ctx.moveTo(rightLungX + lungWidth * 0.3, rightLungY); ctx.quadraticCurveTo(rightLungX, rightLungY + lungHeight * 0.1, rightLungX, rightLungY + lungHeight * 0.3); ctx.quadraticCurveTo(rightLungX, rightLungY + lungHeight * 0.9, rightLungX + lungWidth * 0.5, rightLungY + lungHeight); ctx.quadraticCurveTo(rightLungX + lungWidth * 0.9, rightLungY + lungHeight * 0.8, rightLungX + lungWidth * 0.7, rightLungY + lungHeight * 0.4); ctx.closePath(); ctx.fill();
+            ctx.beginPath(); ctx.moveTo(leftLungX + lungWidth * 0.7, rightLungY); ctx.quadraticCurveTo(leftLungX + lungWidth, rightLungY + lungHeight * 0.1, leftLungX + lungWidth, rightLungY + lungHeight * 0.3); ctx.quadraticCurveTo(leftLungX + lungWidth, rightLungY + lungHeight * 0.9, leftLungX + lungWidth * 0.5, rightLungY + lungHeight); ctx.quadraticCurveTo(leftLungX + lungWidth * 0.1, rightLungY + lungHeight * 0.8, leftLungX + lungWidth * 0.3, rightLungY + lungHeight * 0.3); ctx.closePath(); ctx.fill();
+            if (wetnessLevel > 0.05) {
+                ctx.fillStyle = colors.lungFluid; ctx.globalAlpha = wetnessLevel * 0.6 + 0.1;
+                ctx.beginPath(); ctx.moveTo(rightLungX + lungWidth*0.3, rightLungY); ctx.quadraticCurveTo(rightLungX, rightLungY+lungHeight*0.1, rightLungX, rightLungY+lungHeight*0.3); ctx.quadraticCurveTo(rightLungX, rightLungY+lungHeight*0.9, rightLungX+lungWidth*0.5, rightLungY+lungHeight); ctx.quadraticCurveTo(rightLungX+lungWidth*0.9, rightLungY+lungHeight*0.8, rightLungX+lungWidth*0.7, rightLungY+lungHeight*0.4); ctx.closePath(); ctx.fill();
+                ctx.beginPath(); ctx.moveTo(leftLungX + lungWidth*0.7, rightLungY); ctx.quadraticCurveTo(leftLungX+lungWidth, rightLungY+lungHeight*0.1, leftLungX+lungWidth, rightLungY+lungHeight*0.3); ctx.quadraticCurveTo(leftLungX+lungWidth, rightLungY+lungHeight*0.9, leftLungX+lungWidth*0.5, rightLungY+lungHeight); ctx.quadraticCurveTo(leftLungX+lungWidth*0.1, rightLungY+lungHeight*0.8, leftLungX+lungWidth*0.3, rightLungY+lungHeight*0.3); ctx.closePath(); ctx.fill();
+                if (wetnessLevel > 0.5) {
+                    ctx.fillStyle = colors.lungFluidHighlight; ctx.globalAlpha = wetnessLevel * 0.3;
+                    for (let i = 0; i < Math.floor(wetnessLevel * 30); i++) {
+                        let rx = rightLungX + Math.random() * lungWidth; let ry = rightLungY + Math.random() * lungHeight; ctx.beginPath(); ctx.arc(rx, ry, Math.random() * 2 + 1 * (canvasWidth/baseCanvasWidth), 0, Math.PI * 2); ctx.fill();
+                        let lx = leftLungX + Math.random() * lungWidth; let ly = leftLungY + Math.random() * lungHeight; ctx.beginPath(); ctx.arc(lx, ly, Math.random() * 2 + 1 * (canvasWidth/baseCanvasWidth), 0, Math.PI * 2); ctx.fill();
+                    }
+                }
+            }
+            ctx.fillStyle = colors.textPrimary;
+            ctx.font = `500 ${canvasWidth * 0.018}px Inter`; 
+            ctx.textAlign = "center";
+            const edemaText = `${currentHemodynamics.edemaSeverity} (${currentHemodynamics.edemaScore}/10)`;
+            ctx.fillText(edemaText, (rightLungX + leftLungX + lungWidth)/2 , rightLungY + lungHeight + canvasHeight * 0.03);
+            ctx.fillText(`Native Ejectate O2: ${currentHemodynamics.nativeOxygenation}`, (rightLungX + leftLungX + lungWidth)/2 , rightLungY + lungHeight + canvasHeight * 0.06);
+            ctx.restore();
+        }
+        function drawLA() { 
+            currentLaRadius += (targetLaRadius - currentLaRadius) * easeFactor; ctx.fillStyle = colors.la; ctx.beginPath(); ctx.arc(heartX() - currentLvRadius * 0.7, heartY() - currentLvRadius * 0.9, currentLaRadius, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = colors.textPrimary; ctx.font = `bold ${canvasWidth * 0.020}px Inter`; 
+            ctx.textAlign = "center"; ctx.textBaseline = "middle";
+            ctx.fillText("LA", heartX() - currentLvRadius * 0.7, heartY() - currentLvRadius * 0.9 - currentLaRadius * 0.5);
+            ctx.font = `500 ${canvasWidth * 0.018}px Inter`;
+            ctx.fillText(`${currentHemodynamics.laPress} mmHg`, heartX() - currentLvRadius * 0.7, heartY() - currentLvRadius * 0.9 + currentLaRadius * 0.1);
+        }
+        function drawLV() { 
+            currentLvRadius += (targetLvRadius - currentLvRadius) * easeFactor; ctx.fillStyle = colors.lv; ctx.beginPath(); ctx.ellipse(heartX(), heartY(), currentLvRadius * 0.85, currentLvRadius, Math.PI * 0.05, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = colors.textPrimary; ctx.font = `bold ${canvasWidth * 0.022}px Inter`;
+            ctx.textAlign = "center"; ctx.textBaseline = "middle";
+            ctx.fillText("LV", heartX(), heartY() - currentLvRadius * 0.3);
+            ctx.font = `500 ${canvasWidth * 0.018}px Inter`;
+            ctx.fillText(`${currentHemodynamics.lvSys}/${currentHemodynamics.lvDia} mmHg`, heartX(), heartY() + currentLvRadius * 0.05);
+        }
+        function drawAorta() {
+            ctx.fillStyle=colors.aorta;ctx.strokeStyle=colors.aorta;ctx.lineWidth=1; 
+            const rX=aorticRootX(),rY=aorticRootY(),ascH=ascendingAortaHeight(),archR=archRadius(),aW=aorticWidth(),descH=descendingAortaHeight();
+            const p1={x:rX-aW/2,y:rY},p2={x:rX-aW/2,y:rY-ascH},iATR={x:rX+aW/2,y:rY-ascH},iABR={x:rX+aW/2,y:rY};const oAPX=rX,oAPY=rY-ascH-archR*0.85,oATX=rX+archR*0.8,oATY=rY-ascH-archR*0.2;const dTRX=oATX,dTRY=oATY,dTLX=dTRX-aW,dTLY=dTRY,dBLX=dTLX,dBLY=dTLY+descH,dBRX=dTRX,dBRY=dTRY+descH;
+            ctx.beginPath();ctx.moveTo(p1.x,p1.y);ctx.lineTo(p2.x,p2.y);ctx.quadraticCurveTo(oAPX-archR*0.3,oAPY-archR*0.1,dTRX,dTRY);ctx.lineTo(dBRX,dBRY);ctx.lineTo(dBLX,dBLY);ctx.lineTo(dTLX,dTLY);ctx.quadraticCurveTo(oAPX-aW*0.2,oAPY+aW*0.6,iATR.x,iATR.y);ctx.lineTo(iABR.x,iABR.y);ctx.closePath();ctx.fill();
+            window.aorticBoundaries={minX:p2.x,maxX:dTRX,minY:oAPY,maxY:rY,rootX:rX,valveY:rY,aWidth:aW,ascHeight:ascH,archR:archR,ascTopY:p2.y,ascLeftX:p1.x,ascRightX:iABR.x,descTopY:dTLY,descBottomY:dBLY,descLeftX:dBLX,descRightX:dBRX};
+            ctx.fillStyle=colors.textSecondary;ctx.font=`500 ${canvasWidth*0.020}px Inter`;ctx.textAlign="center";
+            ctx.fillText("Aorta",rX+archR*0.05,oAPY-(canvasWidth*0.035)); 
+            ctx.fillStyle=colors.textPrimary; ctx.font = `bold ${canvasWidth * 0.018}px Inter`;
+            ctx.fillText(`MAP: ${currentHemodynamics.map} mmHg`, rX + archR * 0.5, oAPY + canvasHeight * 0.02);
+        }
+        function drawAorticValve(isOpen, openingDeg = 1.0) { 
+            window.aorticValveIsOpen = isOpen; 
+            valveOpeningDegree = openingDeg; 
+            const vCX=aorticRootX(),vY=aorticRootY(),vLBL=aorticWidth()*0.7,vAW=aorticWidth();ctx.fillStyle=colors.valveLeaflet;const bLW=2*(canvasWidth/baseCanvasWidth),dLW=(3*openingDeg+1.5)*(canvasWidth/baseCanvasWidth);ctx.lineWidth=Math.max(bLW,dLW);
+            if(isOpen&&openingDeg>0.05){
+                const aLL=vLBL*(0.5+0.5*openingDeg),tS=aorticWidth()*0.05+(aorticWidth()*0.35*openingDeg),lR=aLL*(0.65+0.25*openingDeg);
+                ctx.beginPath();ctx.moveTo(vCX-vAW/2,vY);ctx.bezierCurveTo(vCX-vAW*0.35,vY-lR*0.4*openingDeg,vCX-tS/1.5,vY-lR,vCX-tS/2,vY-lR);ctx.quadraticCurveTo(vCX-vAW*0.1,vY-lR*0.2*openingDeg,vCX-vAW/2,vY);ctx.fill();ctx.strokeStyle=colors.valveLeafletEdge;ctx.lineWidth=1.5*(canvasWidth/baseCanvasWidth);ctx.stroke();
+                ctx.fillStyle=colors.valveLeaflet;ctx.beginPath();ctx.moveTo(vCX+vAW/2,vY);ctx.bezierCurveTo(vCX+vAW*0.35,vY-lR*0.4*openingDeg,vCX+tS/1.5,vY-lR,vCX+tS/2,vY-lR);ctx.quadraticCurveTo(vCX+vAW*0.1,vY-lR*0.2*openingDeg,vCX+vAW/2,vY);ctx.fill();ctx.strokeStyle=colors.valveLeafletEdge;ctx.lineWidth=1.5*(canvasWidth/baseCanvasWidth);ctx.stroke();
+            }else{
+                ctx.fillStyle=colors.valveLeaflet;ctx.lineWidth=4*(canvasWidth/baseCanvasWidth);ctx.strokeStyle=colors.valveLeafletEdge;const cD=vLBL*0.75;
+                ctx.beginPath();ctx.moveTo(vCX-vAW/2,vY);ctx.quadraticCurveTo(vCX-vAW*0.1,vY-cD*0.6,vCX,vY-cD);ctx.lineTo(vCX,vY);ctx.closePath();ctx.fill();ctx.stroke();
+                ctx.beginPath();ctx.moveTo(vCX+vAW/2,vY);ctx.quadraticCurveTo(vCX+vAW*0.1,vY-cD*0.6,vCX,vY-cD);ctx.lineTo(vCX,vY);ctx.closePath();ctx.fill();ctx.stroke();
+                ctx.beginPath();ctx.moveTo(vCX,vY-cD);ctx.lineTo(vCX,vY-cD+3*(canvasWidth/baseCanvasWidth));ctx.lineWidth=2.5*(canvasWidth/baseCanvasWidth);ctx.strokeStyle=colors.valveLeafletEdge;ctx.stroke();
+            }
+            ctx.fillStyle = colors.textPrimary;
+            ctx.font = `500 ${canvasWidth * 0.018}px Inter`;
+            ctx.textAlign = "center";
+            ctx.fillText(`AoV: ${currentHemodynamics.valveStatus}`, vCX, vY + canvasHeight * 0.03);
+        }
+        function drawMitralValve() { 
+            const mvX=heartX()-currentLvRadius*0.35,mvY=heartY()-currentLvRadius*0.7,mvL=currentLaRadius*0.55;ctx.strokeStyle=colors.valveColor;ctx.lineWidth=2.5*(canvasWidth/baseCanvasWidth);ctx.beginPath();ctx.moveTo(mvX-mvL,mvY+mvL*0.8);ctx.quadraticCurveTo(mvX,mvY,mvX+mvL,mvY-mvL*0.6);ctx.stroke();
+        }
+        function drawEcmoArterialCannula() { 
+            if(!window.aorticBoundaries.descLeftX)return;ctx.fillStyle=colors.deviceGray;const c=ecmoArterialCannula,x=c.x(),ys=c.y_start(),ye=c.y_end(),w=c.width();ctx.beginPath();ctx.moveTo(x-w/2,ys);ctx.lineTo(x-w/2,ye+w/4);ctx.quadraticCurveTo(x-w/2,ye,x-w/2+w/4,ye);ctx.lineTo(x+w/2-w/4,ye);ctx.quadraticCurveTo(x+w/2,ye,x+w/2,ye+w/4);ctx.lineTo(x+w/2,ys);ctx.closePath();ctx.fill();ctx.beginPath();ctx.moveTo(x-w/2,ye+w/4-1);ctx.lineTo(x+w/2,ye+w/4-1);ctx.lineTo(x,ye-10*(canvasWidth/baseCanvasWidth));ctx.closePath();ctx.fill();
+        }
+
+        function drawParticles(particleArray, color) {
+            if(!window.aorticBoundaries.descLeftX) return; 
+            const b = window.aorticBoundaries;
+            for(let i = particleArray.length - 1; i >= 0; i--) {
+                const p = particleArray[i];
+                ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                ctx.fillStyle = color; ctx.globalAlpha = p.opacity; ctx.fill(); ctx.globalAlpha = 1;
+                let originalVy = p.vy;
+                if (p.type === 'ecmo') {
+                    const margin = p.radius;
+                    if (p.y > b.ascTopY) { 
+                        p.x = Math.max(b.descLeftX + margin, Math.min(b.descRightX - margin, p.x));
+                        if (p.x <= b.descLeftX + margin || p.x >= b.descRightX - margin) p.vx *= -0.5;
+                        if (p.y < b.descTopY && p.y >= b.ascTopY) { 
+                             const progressInArchY = (b.descTopY - p.y) / (b.descTopY - b.ascTopY);
+                             const targetXInArch = b.descLeftX + (b.ascLeftX - b.descLeftX) * progressInArchY;
+                             p.x = Math.max(b.minX + margin, Math.min(b.maxX - margin, targetXInArch + (p.x - targetXInArch)*0.9 + (Math.random() - 0.5) * b.aWidth * 0.1)); 
+                             if (p.x <= b.minX + margin || p.x >= b.maxX - margin) p.vx *= -0.5;
+                        }
+                    } 
+                    else if (p.y < b.ascTopY && p.y >= b.valveY - p.radius * 2) { 
+                        p.x = Math.max(b.ascLeftX + margin, Math.min(b.ascRightX - margin, p.x));
+                        if (p.x <= b.ascLeftX + margin || p.x >= b.ascRightX - margin) p.vx *= -0.5;
+                        if (!window.aorticValveIsOpen && currentEcmoFlowLevel > 0.5) { 
+                            p.vy = originalVy * (0.2 - currentEcmoFlowLevel * 0.3); p.vx += (Math.random() - 0.5) * 0.3 * currentEcmoFlowLevel; 
+                            if (p.y < b.valveY + 10) p.vy = Math.max(p.vy, 0.05); 
+                        } else if (window.aorticValveIsOpen) { p.vy = originalVy * (1 + currentEcmoFlowLevel * 0.1); }
+                    }
+                    if (!window.aorticValveIsOpen && p.y < b.valveY && p.y > b.valveY - 10 && p.x > b.ascLeftX && p.x < b.ascRightX) { p.y = b.valveY; p.vy *= -0.1; }
+                } else if (p.type === 'native') {
+                    const margin = p.radius;
+                    if (window.aorticValveIsOpen && p.y <= b.valveY && p.y > b.valveY - (b.ascHeight * 0.3)) { 
+                        p.vy = - (1.5 + Math.random() * 0.8); p.vx = (b.rootX - p.x) * 0.05 + (Math.random() -0.5) * 0.2; 
+                    } else if (!window.aorticValveIsOpen && p.y < b.valveY) { p.y = Math.min(p.y, heartY() + currentLvRadius * 0.5); p.vy *= 0.1; }
+                    if (p.y < b.valveY) { 
+                        if (p.y >= b.ascTopY && p.y < b.valveY) { 
+                             p.x = Math.max(b.ascLeftX + margin, Math.min(b.ascRightX - margin, p.x)); if (p.x <= b.ascLeftX + margin || p.x >= b.ascRightX - margin) p.vx *= -0.5;
+                         } else if (p.y < b.ascTopY && p.y >= b.minY) { 
+                             p.x = Math.max(b.minX + margin, Math.min(b.maxX - margin, p.x)); if (p.x <= b.minX + margin || p.x >= b.maxX - margin) p.vx *= -0.5;
+                         }
+                         if (p.y < b.ascTopY && p.y > b.minY + (b.ascTopY - b.minY)*0.3) { p.vx += (b.rootX - p.x) * 0.001; }
+                    }
+                }
+                p.x += p.vx * (canvasWidth/baseCanvasWidth); 
+                p.y += p.vy * (canvasHeight/baseCanvasHeight); 
+                p.life -= 1; p.opacity = Math.max(0, p.life / 100);
+                if (p.life <= 0 || p.y < b.minY - 20 || p.y > canvasHeight + 20) {particleArray.splice(i,1);}
+            }
+        }
+
+        function drawCannulaParticles() { 
+            if(!window.aorticBoundaries.descLeftX)return;const c=ecmoArterialCannula;ctx.fillStyle=colors.ecmoBloodOxygenated;
+            for(let i=0;i<cannulaParticles.length;i++){
+                const p=cannulaParticles[i];ctx.beginPath();ctx.arc(p.x,p.y,p.radius,0,Math.PI*2);ctx.fill();
+                p.y-=p.speed*(canvasHeight/baseCanvasHeight); 
+                if(p.y<c.y_end()){
+                    let aorticParticleSpeed=1.0+currentEcmoFlowLevel*2.0;
+                    if(ecmoParticles.length<(40+currentEcmoFlowLevel*90)){ecmoParticles.push(createParticle(p.x,c.y_end()-1,aorticParticleSpeed,'ecmo'));}
+                    p.x=c.x()-c.width()/2+Math.random()*c.width();p.y=c.y_start()+Math.random()*10*(canvasHeight/baseCanvasHeight);p.speed=0.8+currentEcmoFlowLevel*1.7+Math.random()*0.7;
+                }
+            }
+        }
+        function drawIABP(cycle) { 
+            if(!window.aorticBoundaries.descLeftX)return;const b=window.aorticBoundaries;const bMY=b.descTopY+(b.descBottomY-b.descTopY)*0.4,bX=(b.descLeftX+b.descRightX)/2,bBW=b.aWidth*0.4,bBH=(b.descBottomY-b.descTopY)*0.65;const isI=cycle>0.5,iP=isI?(cycle-0.5)*2:(0.5-cycle)*2,eI=Math.sin(iP*Math.PI/2);const bW=bBW*(isI?(0.4+0.6*eI):(1-0.6*eI)),bH=bBH*(isI?(0.9+0.1*eI):(1-0.1*eI));ctx.fillStyle=colors.iabpBalloon;ctx.globalAlpha=0.85;const cT=5*(canvasWidth/baseCanvasWidth);ctx.fillRect(bX-cT/2,bMY+bH*0.5,cT,b.descBottomY-(bMY+bH*0.5)+5*(canvasHeight/baseCanvasHeight));ctx.fillRect(bX-cT/2,b.descTopY-10*(canvasHeight/baseCanvasHeight),cT,(bMY-bH*0.5)-(b.descTopY-10*(canvasHeight/baseCanvasHeight)));ctx.beginPath();ctx.ellipse(bX,bMY,bW,bH/2,0,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;ctx.font=`500 ${10*(canvasWidth/baseCanvasWidth)}px Inter`;ctx.fillStyle="#343a40";ctx.textAlign="center";ctx.fillText(isI?"IABP Inflated":"IABP Deflated",bX,bMY+bH/2+18*(canvasHeight/baseCanvasHeight));
+        }
+        function drawImpella() { 
+            if(!window.aorticBoundaries.descLeftX)return;const b=window.aorticBoundaries;const cTILVX=heartX(),cTILVY=heartY()+currentLvRadius*0.2,cOAX=b.rootX,cOAY=b.valveY-b.ascHeight*0.35;ctx.strokeStyle=colors.deviceGray;ctx.lineWidth=7*(canvasWidth/baseCanvasWidth);ctx.lineCap="round";ctx.beginPath();ctx.moveTo(cOAX,cOAY);ctx.bezierCurveTo(b.rootX,b.valveY,heartX()-currentLvRadius*0.1,heartY()-currentLvRadius*0.1,cTILVX,cTILVY);ctx.stroke();ctx.lineCap="butt";const tR=9*(canvasWidth/baseCanvasWidth);ctx.fillStyle='#7209b7';ctx.beginPath();ctx.arc(cTILVX,cTILVY,tR,0,Math.PI*2);ctx.fill();ctx.fillStyle=colors.nativeLVBlood;ctx.beginPath();ctx.arc(cOAX,cOAY,tR*0.8,0,Math.PI*2);ctx.fill();ctx.fillStyle=colors.nativeLVBlood;const pTR=3.5*(canvasWidth/baseCanvasWidth);
+            for(let i=0;i<4;i++){let prog=(time*0.1+i*0.25)%1;let pX=Math.pow(1-prog,3)*cTILVX+3*Math.pow(1-prog,2)*prog*(heartX()-currentLvRadius*0.1)+3*(1-prog)*Math.pow(prog,2)*b.rootX+Math.pow(prog,3)*cOAX;let pY=Math.pow(1-prog,3)*cTILVY+3*Math.pow(1-prog,2)*prog*(heartY()-currentLvRadius*0.1)+3*(1-prog)*Math.pow(prog,2)*b.valveY+Math.pow(prog,3)*cOAY;ctx.globalAlpha=1-prog*0.5;ctx.beginPath();ctx.arc(pX,pY,pTR*(1-prog*0.5),0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;}
+            ctx.font=`500 ${10*(canvasWidth/baseCanvasWidth)}px Inter`;ctx.fillStyle="#343a40";ctx.textAlign="center";ctx.fillText("Impella",cOAX,cOAY-20*(canvasHeight/baseCanvasHeight));
+        }
+        function drawDirectLVVent() { 
+            const vSX=heartX()+currentLvRadius*0.5,vSY=heartY()+currentLvRadius*0.7,vEX=canvasWidth*0.05,vEY=canvasHeight*0.85;ctx.strokeStyle=colors.deviceGray;ctx.lineWidth=9*(canvasWidth/baseCanvasWidth);ctx.lineCap="round";ctx.beginPath();ctx.moveTo(vSX,vSY);ctx.lineTo(vEX,vEY);ctx.stroke();ctx.lineCap="butt";ctx.fillStyle=colors.lv;const pTR=4.5*(canvasWidth/baseCanvasWidth);
+            for(let i=0;i<4;i++){let prog=(time*0.08+i*0.25)%1;let pX=vSX+(vEX-vSX)*prog,pY=vSY+(vEY-vSY)*prog;ctx.globalAlpha=1-prog*0.6;ctx.beginPath();ctx.arc(pX,pY,pTR*(1-prog*0.5),0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;}
+            ctx.font=`500 ${10*(canvasWidth/baseCanvasWidth)}px Inter`;ctx.fillStyle="#343a40";ctx.textAlign="right";ctx.fillText("LV Apex Vent",vSX-15*(canvasWidth/baseCanvasWidth),vSY+20*(canvasHeight/baseCanvasHeight));
+        }
+
+        function drawWatershedZone() {
+            const yPos = window.watershedDisplayY;
+            const b = window.aorticBoundaries;
+
+            if (!b || typeof b.valveY === 'undefined' || yPos === 0) return; 
+
+            let x1, x2;
+
+            if (yPos <= b.valveY && yPos > b.ascTopY) { 
+                x1 = b.ascLeftX;
+                x2 = b.ascRightX;
+            } else if (yPos <= b.ascTopY && yPos > b.descTopY) { 
+                const progressInArch = (b.ascTopY - yPos) / (b.ascTopY - b.descTopY); 
+                const midArchX = b.rootX + b.archR * 0.3 * Math.sin(progressInArch * Math.PI); 
+                const archWidthFactor = 0.8 + 0.4 * Math.sin(progressInArch * Math.PI); 
+                x1 = midArchX - (b.aWidth * archWidthFactor);
+                x2 = midArchX + (b.aWidth * archWidthFactor);
+                x1 = Math.max(b.minX - b.aWidth * 0.1, x1); 
+                x2 = Math.min(b.maxX + b.aWidth * 0.1, x2);
+            } else if (yPos <= b.descTopY && yPos > b.descBottomY + 20) { 
+                x1 = b.descLeftX;
+                x2 = b.descRightX;
+            } else { 
+                return; 
+            }
+
+            if (typeof x1 === 'undefined' || typeof x2 === 'undefined' || x1 >= x2) {
+                return;
+            }
+
+            ctx.beginPath();
+            ctx.moveTo(x1, yPos);
+            ctx.lineTo(x2, yPos);
+            ctx.strokeStyle = colors.watershedLine;
+            ctx.lineWidth = 3.5 * (canvasWidth/baseCanvasWidth);
+            ctx.shadowColor = colors.watershedShadow;
+            ctx.shadowBlur = 4 * (canvasWidth/baseCanvasWidth);
+            ctx.stroke();
+            ctx.shadowColor = 'transparent'; 
+            ctx.shadowBlur = 0;
+        }
+
+        function drawSpo2Values() {
+            if (!window.aorticBoundaries || typeof window.aorticBoundaries.rootX === 'undefined') return;
+            
+            ctx.fillStyle = colors.textPrimary;
+            ctx.font = `bold ${canvasWidth * 0.019}px Inter`; 
+            ctx.textAlign = "right";
+            
+            const spo2OffsetX = canvasWidth * 0.18; 
+            const spo2OffsetY_upper = canvasHeight * 0.05;
+            const spo2OffsetY_lower = canvasHeight * 0.08;
+
+
+            const upperSpo2X = window.aorticBoundaries.maxX + spo2OffsetX;
+            const upperSpo2Y = window.aorticBoundaries.minY + spo2OffsetY_upper;
+            ctx.fillText(`Upper SpO2: ${currentHemodynamics.upperLimbSpo2}%`, upperSpo2X, upperSpo2Y);
+
+            const lowerSpo2X = window.aorticBoundaries.descRightX + spo2OffsetX;
+            const lowerSpo2Y = window.aorticBoundaries.descBottomY - spo2OffsetY_lower;
+            ctx.fillText(`Lower SpO2: ${currentHemodynamics.lowerLimbSpo2}%`, lowerSpo2X, lowerSpo2Y);
+        }
+        
+        function animate() {
+            time++;
+            ctx.clearRect(0, 0, canvasWidth, canvasHeight); 
+
+            let heartBeatCycle=(time%120)/120;
+            let lvSystoleFactor=0.5-0.5*Math.cos(heartBeatCycle*Math.PI*2);if(heartBeatCycle>0.5)lvSystoleFactor=0.5-0.5*Math.cos((1-heartBeatCycle)*Math.PI*2);
+            
+            let baseLvRadiusFactor = 1 - (currentLvFunctionLevel * 0.15); 
+            let current_targetLvRadius=lvBaseRadiusBase()* baseLvRadiusFactor * (1.25+0.15*(1-lvSystoleFactor));
+            let current_targetLaRadius=laRadiusBase()*(1.2+0.1*(1-lvSystoleFactor)); 
+            
+            currentHemodynamics.map=(65+currentEcmoFlowLevel*30+Math.sin(time*0.04)*4).toFixed(0);
+            currentHemodynamics.lvSys=(110 + currentLvFunctionLevel * 40 + currentEcmoFlowLevel*40+lvSystoleFactor*12).toFixed(0);
+            currentHemodynamics.lvDia=(25+currentEcmoFlowLevel*15+(1-lvSystoleFactor)*6).toFixed(0);
+            currentHemodynamics.laPress=(18+currentEcmoFlowLevel*15+(parseFloat(currentHemodynamics.lvDia)/30)*7).toFixed(0); 
+
+            let valveStatusText="Closed";let descriptionParts=[];
+            
+            let calculatedLungWetness = 1.0 - currentLungFunctionLevel * 0.85; 
+            let nativeOxygenationQuality = 0.15 + currentLungFunctionLevel * 0.85; 
+
+            let valveOpeningPotential = lvSystoleFactor * (0.4 + currentLvFunctionLevel * 0.6); 
+
+            let flowDesc="Low Flow";if(currentEcmoFlowLevel>0.75)flowDesc="High Flow";else if(currentEcmoFlowLevel>0.4)flowDesc="Moderate Flow";
+            
+            current_targetLvRadius*=(1+currentEcmoFlowLevel*0.25);current_targetLaRadius*=(1+currentEcmoFlowLevel*0.20);
+            
+            let tempLvDia = parseFloat(currentHemodynamics.lvDia); 
+            let tempLaPress = parseFloat(currentHemodynamics.laPress);
+
+            tempLvDia+=Math.max(0,(currentLvRadius/lvBaseRadiusBase()-1.2))*12;
+            tempLaPress+=Math.sin(time*0.03)*2;
+            calculatedLungWetness+=Math.max(0,(tempLaPress-18))*0.025; 
+
+            let inotropesEffect=0,iabpEffect=0,impellaEffect=0,lvVentEffect=0,diureticsEffect=0, vavEffect=0, optiVentsEffect=0;
+            let isHarlequinActive = (scenarioMode === 'harlequin');
+            
+            if (isHarlequinActive) {
+                calculatedLungWetness = Math.max(calculatedLungWetness, 0.75); 
+                nativeOxygenationQuality = Math.min(nativeOxygenationQuality, 0.25);
+                valveOpeningPotential *= (1 - (1-currentLvFunctionLevel)*0.3); 
+                valveOpeningPotential -= currentEcmoFlowLevel * 0.45; 
+            } else {
+                valveOpeningPotential -= currentEcmoFlowLevel * 0.7; 
+            }
+
+            if(activeInterventions.includes('Diuretics')){diureticsEffect=1;current_targetLaRadius*=0.92;current_targetLvRadius*=0.95;tempLaPress=Math.max(5,tempLaPress-6);tempLvDia=Math.max(5,tempLvDia-5);calculatedLungWetness*=0.55;descriptionParts.push("Diuretics"); nativeOxygenationQuality = Math.min(1.0, nativeOxygenationQuality + 0.1);}
+            if(activeInterventions.includes('Inotropes')){inotropesEffect=1;current_targetLvRadius*=0.85;current_targetLaRadius*=0.90;currentHemodynamics.lvSys=(parseFloat(currentHemodynamics.lvSys)+(lvSystoleFactor*20)).toFixed(0);tempLvDia-=10;tempLaPress-=7;valveOpeningPotential+=0.50;calculatedLungWetness*=0.90;descriptionParts.push("Inotropes"); nativeOxygenationQuality = Math.min(1.0, nativeOxygenationQuality + 0.1);}
+            if(activeInterventions.includes('IABP')){iabpEffect=1;const iabpCycle=(time%80)/80;const iabpIsDeflating=iabpCycle<0.5;current_targetLvRadius*=(iabpIsDeflating?0.92:1.02);current_targetLaRadius*=(iabpIsDeflating?0.96:1.01);currentHemodynamics.map=(parseFloat(currentHemodynamics.map)+(iabpIsDeflating?-8:12)).toFixed(0);currentHemodynamics.lvSys=(parseFloat(currentHemodynamics.lvSys)-(iabpIsDeflating?15:-5)).toFixed(0);tempLvDia-=7;tempLaPress-=5;if(iabpIsDeflating)valveOpeningPotential+=0.45;calculatedLungWetness*=0.8;descriptionParts.push("IABP"); nativeOxygenationQuality = Math.min(1.0, nativeOxygenationQuality + 0.05);}
+            if(activeInterventions.includes('Impella')){impellaEffect=1;current_targetLvRadius*=0.65;current_targetLaRadius*=0.75;currentHemodynamics.lvSys=(100+currentEcmoFlowLevel*15+lvSystoleFactor*8).toFixed(0);tempLvDia=7+currentEcmoFlowLevel*5;tempLaPress=7+currentEcmoFlowLevel*4;valveOpeningPotential+=0.85;calculatedLungWetness*=0.4;descriptionParts.push("Impella"); nativeOxygenationQuality = Math.min(1.0, nativeOxygenationQuality + 0.1);}
+            if(activeInterventions.includes('LVVent')){lvVentEffect=1;current_targetLvRadius*=0.60;current_targetLaRadius*=0.70;currentHemodynamics.lvSys=(90+currentEcmoFlowLevel*10+lvSystoleFactor*8).toFixed(0);tempLvDia=4+currentEcmoFlowLevel*3;tempLaPress=4+currentEcmoFlowLevel*2;valveOpeningPotential+=0.95;calculatedLungWetness*=0.35;descriptionParts.push("LV Vent"); nativeOxygenationQuality = Math.min(1.0, nativeOxygenationQuality + 0.15);}
+            if(activeInterventions.includes('VAVECMO')){vavEffect=1; calculatedLungWetness *= 0.85; nativeOxygenationQuality = Math.min(1.0, nativeOxygenationQuality + 0.6); descriptionParts.push("VAV ECMO");} 
+            if(activeInterventions.includes('OptiVents')){optiVentsEffect=1; calculatedLungWetness *= (0.5 + (1-currentLungFunctionLevel)*0.2); nativeOxygenationQuality = Math.min(1.0, nativeOxygenationQuality + 0.3 + currentLungFunctionLevel*0.2); descriptionParts.push("Optimized Vents");} 
+            
+            nativeOxygenationQuality = Math.min(1.0, Math.max(0.1, nativeOxygenationQuality)); 
+            calculatedLungWetness = Math.min(1.0, Math.max(0.05, calculatedLungWetness));
+
+            if (nativeOxygenationQuality > 0.85) currentHemodynamics.nativeOxygenation = "Good";
+            else if (nativeOxygenationQuality > 0.5) currentHemodynamics.nativeOxygenation = "Fair";
+            else if (nativeOxygenationQuality > 0.25) currentHemodynamics.nativeOxygenation = "Poor";
+            else currentHemodynamics.nativeOxygenation = "Very Poor";
+
+            currentHemodynamics.lvDia = Math.max(2, tempLvDia).toFixed(0); 
+            currentHemodynamics.laPress = Math.max(1, tempLaPress).toFixed(0);
+
+            targetLvRadius=Math.max(lvBaseRadiusBase()*0.5,current_targetLvRadius);targetLaRadius=Math.max(laRadiusBase()*0.5,current_targetLaRadius);
+            window.lungWetnessLevel=calculatedLungWetness; 
+
+            let localValveIsOpen = false; 
+            let localValveOpeningDegree = 0; 
+            if (valveOpeningPotential > 0.25 && (heartBeatCycle > 0.15 && heartBeatCycle < 0.55)) { 
+                localValveIsOpen = true;
+                localValveOpeningDegree = Math.min(0.9, valveOpeningPotential * 1.2); 
+                valveStatusText = impellaEffect > 0 ? "Unloaded/Stented" : (lvVentEffect > 0 ? "Vented Open" : "Opening");
+            } else {
+                localValveIsOpen = false;
+                localValveOpeningDegree = 0;
+                valveStatusText = "Closed";
+                if (currentEcmoFlowLevel > 0.6 && valveOpeningPotential < 0) valveStatusText = "Forced Closed";
+            }
+            if (lvVentEffect > 0 && impellaEffect === 0 && valveOpeningPotential < 0.1) { 
+                localValveIsOpen = false; localValveOpeningDegree = 0; valveStatusText = "Closed (Decompressed)";
+            }
+            
+            let harlequinResolvedByUnloading = (impellaEffect > 0 || lvVentEffect > 0);
+            let harlequinImprovedByOxygenation = (vavEffect > 0 || optiVentsEffect > 0);
+
+            if(isHarlequinActive && harlequinResolvedByUnloading) {
+                 valveStatusText = impellaEffect > 0 ? "Unloaded/Stented" : "Vented Open";
+            }
+            currentHemodynamics.valveStatus = valveStatusText;
+
+            if (window.aorticBoundaries && typeof window.aorticBoundaries.valveY !== 'undefined') {
+                let watershedLevel; 
+                const b = window.aorticBoundaries;
+                let baseWatershed = 0.1 + (1-currentLvFunctionLevel) * 0.4; 
+                let ecmoEffectFactor = currentEcmoFlowLevel * 0.8; 
+                let nativeStrengthFactor = 0;
+                if (localValveIsOpen && localValveOpeningDegree > 0.1) {
+                    nativeStrengthFactor -= localValveOpeningDegree * 0.7 * currentLvFunctionLevel; 
+                }
+                if (inotropesEffect > 0) { 
+                    nativeStrengthFactor -= 0.4 * (0.5 + currentLvFunctionLevel * 0.5); 
+                }
+                if (iabpEffect > 0 && (time % 80) / 80 < 0.5) { 
+                    nativeStrengthFactor -= 0.25 * currentLvFunctionLevel;
+                }
+                if (impellaEffect > 0 || lvVentEffect > 0) {
+                    watershedLevel = 0.9; 
+                } else {
+                    watershedLevel = baseWatershed + ecmoEffectFactor + nativeStrengthFactor;
+                }
+                watershedLevel = Math.max(0.05, Math.min(0.95, watershedLevel)); 
+                window.watershedDisplayY = b.minY + watershedLevel * (b.valveY - b.minY);
+            } else {
+                window.watershedDisplayY = 0; 
+            }
+
+            const ecmoSpo2 = 99; 
+            currentHemodynamics.lowerLimbSpo2 = ecmoSpo2.toString();
+            let nativeSpo2Value = Math.round(60 + (nativeOxygenationQuality * 40));
+            nativeSpo2Value = Math.min(100, Math.max(60, nativeSpo2Value)); 
+
+            if (window.aorticBoundaries && typeof window.aorticBoundaries.ascTopY !== 'undefined') {
+                const b = window.aorticBoundaries;
+                const archVesselTakeoffApproxY = b.ascTopY - (b.ascTopY - b.minY) * 0.3; 
+
+                // CORRECTED LOGIC:
+                // If watershedDisplayY (interface) is physically HIGHER on screen (smaller Y value) 
+                // than archVesselTakeoffApproxY, it means native flow doesn't reach/dominate arch, so ECMO perfuses arch.
+                if (window.watershedDisplayY < archVesselTakeoffApproxY) { 
+                    currentHemodynamics.upperLimbSpo2 = ecmoSpo2.toString();
+                } else {
+                    // Interface is at or physically LOWER on screen than arch vessels, so native blood perfuses them.
+                    currentHemodynamics.upperLimbSpo2 = nativeSpo2Value.toString();
+                }
+            } else {
+                currentHemodynamics.upperLimbSpo2 = '--';
+            }
+            if (impellaEffect > 0 || lvVentEffect > 0) {
+                currentHemodynamics.upperLimbSpo2 = ecmoSpo2.toString();
+            }
+
+            let edemaSeverityText="Mild";let edemaScoreNum=Math.round(window.lungWetnessLevel*10);
+            if(window.lungWetnessLevel>0.7)edemaSeverityText="Severe";else if(window.lungWetnessLevel>0.35)edemaSeverityText="Moderate";
+            currentHemodynamics.edemaSeverity = edemaSeverityText;
+            currentHemodynamics.edemaScore = edemaScoreNum.toString();
+            
+            drawLungs(window.lungWetnessLevel);drawAorta();
+            if(cannulaParticles.length===0&&window.aorticBoundaries.descLeftX)initCannulaParticles();
+            if(ecmoParticles.length===0&&nativeParticles.length===0&&window.aorticBoundaries.descLeftX){initAorticParticles();initNativeParticles();}
+            drawEcmoArterialCannula();drawCannulaParticles();drawParticles(ecmoParticles,colors.ecmoBloodOxygenated);
+            drawLA();drawLV();drawAorticValve(localValveIsOpen,localValveOpeningDegree);drawMitralValve(); 
+            if(activeInterventions.includes('IABP'))drawIABP((time%80)/80);if(activeInterventions.includes('Impella'))drawImpella();if(activeInterventions.includes('LVVent'))drawDirectLVVent();
+
+            let nativeParticleColor = colors.nativeLVBlood; 
+            if (isHarlequinActive && !harlequinResolvedByUnloading && !harlequinImprovedByOxygenation && nativeOxygenationQuality < 0.4) {
+                nativeParticleColor = colors.nativeDeoxygenatedBlood; 
+            } else if (nativeOxygenationQuality < 0.35) {
+                 nativeParticleColor = colors.nativeDeoxygenatedBlood;
+            } else if (nativeOxygenationQuality < 0.65) {
+                 nativeParticleColor = colors.nativeMildlyDeoxygenatedBlood;
+            }
+
+            if (localValveIsOpen && localValveOpeningDegree > 0.05) { 
+                 if (nativeParticles.length < (30 + localValveOpeningDegree * 30) && Math.random() < 0.4) { 
+                    const b = window.aorticBoundaries;
+                    if (b.rootX) nativeParticles.push(createParticle(
+                        b.rootX + (Math.random()-0.5)*b.aWidth*0.15, 
+                        b.valveY - (5 + Math.random()*5), 
+                        1.5 + localValveOpeningDegree * 1.0 + Math.random()*0.5, 
+                        'native'));
+                 }
+            }
+            drawParticles(nativeParticles, nativeParticleColor); 
+            drawWatershedZone(); 
+            drawSpo2Values(); 
+
+            let baseDescription = "";
+            if (isHarlequinActive) {
+                if (harlequinResolvedByUnloading) baseDescription = "Harlequin (LV Unloaded): ";
+                else if (harlequinImprovedByOxygenation && nativeOxygenationQuality > 0.5) baseDescription = "Harlequin (Improved Native O2): ";
+                else baseDescription = "Harlequin Scenario: ";
+            }
+            baseDescription += flowDesc + " ECMO";
+
+            let interventionDetails = descriptionParts.join(' & ');
+            if (interventionDetails) {
+                descriptionElement.textContent = baseDescription + " with " + interventionDetails + ".";
+            } else if (isHarlequinActive) {
+                 descriptionElement.textContent = baseDescription + ". Observe differential flow.";
+            } else if (activeInterventions.length === 0 && currentEcmoFlowLevel < 0.1 && scenarioMode === 'default') {
+                descriptionElement.textContent = "Baseline (Min Flow).";
+            } else {
+                 descriptionElement.textContent = baseDescription + ".";
+            }
+            
+            animationFrameId=requestAnimationFrame(animate);
+        }
+
+        function refreshAnimationState(){time=0;if(window.aorticBoundaries.descLeftX){initCannulaParticles();initAorticParticles();initNativeParticles();}if(animationFrameId)cancelAnimationFrame(animationFrameId);animate();}
+        
+        function updateButtonStates(){
+            document.querySelectorAll('.control-button[data-strategy]').forEach(btn=>{
+                const strategy=btn.dataset.strategy;
+                const isActive = activeInterventions.includes(strategy);
+                btn.classList.toggle('bg-opacity-75', !isActive);
+                btn.classList.toggle('ring-2', isActive);
+                btn.classList.toggle('ring-offset-2', isActive);
+                btn.classList.toggle('ring-sky-500', isActive); 
+            });
+            
+            const harlequinButton = document.getElementById('btnHarlequin');
+            const baselineButton = document.getElementById('btnBaseline');
+            const isHarlequinScenario = scenarioMode === 'harlequin';
+
+            harlequinButton.classList.toggle('ring-2', isHarlequinScenario);
+            harlequinButton.classList.toggle('ring-offset-2', isHarlequinScenario);
+            harlequinButton.classList.toggle('ring-orange-700', isHarlequinScenario); 
+            harlequinButton.classList.toggle('bg-opacity-75', !isHarlequinScenario);
+
+
+            const isTrulyBaseline = scenarioMode === 'default' && activeInterventions.length === 0;
+            baselineButton.classList.toggle('ring-2', isTrulyBaseline);
+            baselineButton.classList.toggle('ring-offset-2', isTrulyBaseline);
+            baselineButton.classList.toggle('ring-blue-700', isTrulyBaseline); 
+            baselineButton.classList.toggle('bg-opacity-75', !isTrulyBaseline);
+
+            if (isHarlequinScenario) {
+                baselineButton.classList.remove('ring-2', 'ring-offset-2', 'ring-blue-700');
+                baselineButton.classList.add('bg-opacity-75');
+            } else if (!isTrulyBaseline) { 
+                 harlequinButton.classList.remove('ring-2', 'ring-offset-2', 'ring-orange-700');
+                 harlequinButton.classList.add('bg-opacity-75');
+            }
+        }
+
+        // Event Listeners for Sliders
+        ecmoFlowSlider.addEventListener('input',(event)=>{
+            currentEcmoFlowLevel=parseFloat(event.target.value)/100;
+            const displayFlow=1.0+currentEcmoFlowLevel*5.0;
+            ecmoFlowValueDisplay.textContent=`${displayFlow.toFixed(1)} L/min`;
+            if(window.aorticBoundaries.descLeftX){initCannulaParticles();}
+            refreshAnimationState();
+        });
+        lvFunctionSlider.addEventListener('input', (event) => {
+            currentLvFunctionLevel = parseFloat(event.target.value) / 100;
+            lvFunctionValueDisplay.textContent = `${event.target.value}%`;
+            refreshAnimationState();
+        });
+        lungFunctionSlider.addEventListener('input', (event) => {
+            currentLungFunctionLevel = parseFloat(event.target.value) / 100;
+            lungFunctionValueDisplay.textContent = `${event.target.value}%`;
+            refreshAnimationState();
+        });
+        
+        document.querySelectorAll('.control-button[data-strategy]').forEach(button=>{
+            button.addEventListener('click',()=>{
+                if (scenarioMode === 'baseline_only') scenarioMode = 'default'; 
+
+                const strategy=button.dataset.strategy;
+                const index=activeInterventions.indexOf(strategy);
+                if(index>-1){
+                    activeInterventions.splice(index,1);
+                }else{
+                    if(activeInterventions.length<MAX_INTERVENTIONS){activeInterventions.push(strategy);}
+                    else{activeInterventions.shift();activeInterventions.push(strategy);}
+                }
+                updateButtonStates();refreshAnimationState();
+            });
+        });
+        
+        document.getElementById('btnBaseline').addEventListener('click',()=>{
+            scenarioMode = 'default'; 
+            activeInterventions=[];
+            ecmoFlowSlider.value="30"; currentEcmoFlowLevel=0.3; ecmoFlowValueDisplay.textContent=`${(1.0+0.3*5.0).toFixed(1)} L/min`;
+            lvFunctionSlider.value = "60"; currentLvFunctionLevel = 0.6; lvFunctionValueDisplay.textContent = "60%";
+            lungFunctionSlider.value = "70"; currentLungFunctionLevel = 0.7; lungFunctionValueDisplay.textContent = "70%";
+            window.watershedDisplayY = 0; 
+            updateButtonStates();refreshAnimationState();
+        });
+
+        document.getElementById('btnHarlequin').addEventListener('click', () => {
+            scenarioMode = 'harlequin';
+            ecmoFlowSlider.value = "50"; currentEcmoFlowLevel = 0.5; ecmoFlowValueDisplay.textContent = `${(1.0 + 0.5 * 5.0).toFixed(1)} L/min`;
+            lvFunctionSlider.value = "30"; currentLvFunctionLevel = 0.3; lvFunctionValueDisplay.textContent = "30%"; 
+            lungFunctionSlider.value = "20"; currentLungFunctionLevel = 0.2; lungFunctionValueDisplay.textContent = "20%"; 
+            window.watershedDisplayY = 0; 
+            updateButtonStates();
+            refreshAnimationState();
+        });
+        
+        function resizeCanvas(){
+            canvas.width = canvas.clientWidth;
+            canvas.height = canvas.clientHeight;
+            canvasWidth = canvas.width;
+            canvasHeight = canvas.height;
+            targetLaRadius = currentLaRadius = laRadiusBase();
+            targetLvRadius = currentLvRadius = lvBaseRadiusBase();
+            window.aorticBoundaries = {}; 
+            window.watershedDisplayY = 0; 
+            cannulaParticles = []; ecmoParticles = []; nativeParticles = [];
+            if(animationFrameId) cancelAnimationFrame(animationFrameId); 
+            setTimeout(()=>{
+                ctx.clearRect(0,0,canvasWidth,canvasHeight); 
+                if (Object.keys(window.aorticBoundaries).length === 0 || typeof window.aorticBoundaries.descLeftX === 'undefined') {
+                    drawAorta(); 
+                }
+                initCannulaParticles(); initAorticParticles(); initNativeParticles();
+                animate(); 
+            }, 70); 
+        }
+        window.addEventListener('resize',resizeCanvas);
+        document.addEventListener('DOMContentLoaded',()=>{
+            currentEcmoFlowLevel=parseFloat(ecmoFlowSlider.value)/100; 
+            ecmoFlowValueDisplay.textContent=`${(1.0+currentEcmoFlowLevel*5.0).toFixed(1)} L/min`;
+            currentLvFunctionLevel = parseFloat(lvFunctionSlider.value)/100;
+            lvFunctionValueDisplay.textContent = `${lvFunctionSlider.value}%`;
+            currentLungFunctionLevel = parseFloat(lungFunctionSlider.value)/100;
+            lungFunctionValueDisplay.textContent = `${lungFunctionSlider.value}%`;
+
+            updateButtonStates();
+            resizeCanvas();
+        });
+    </script>
+</body>
+</html>
+
